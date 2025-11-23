@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title> Vulnerabilidades Web y Buenas Prácticas</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#7c3aed;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial; margin:0; min-height:100vh; color:#e6eef8; background:radial-gradient(1200px 400px at 10% 10%, rgba(124,58,237,0.14), transparent), linear-gradient(180deg,#071428 0%, #041022 100%);}
+    header{padding:28px 24px; display:flex; align-items:center; gap:18px}
+    .logo{width:60px;height:60px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:0 8px 30px rgba(12,8,28,0.6)}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    main{display:grid;grid-template-columns:1fr 420px;gap:28px;padding:24px}
+    /* left content cards */
+    .cards{display:flex;flex-direction:column;gap:18px}
+    .card{background:linear-gradient(180deg,var(--card), rgba(255,255,255,0.02));border-radius:14px;padding:18px;box-shadow:0 6px 18px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03);transform-origin:center;transition:transform 0.35s cubic-bezier(.2,.9,.2,1);}
+    .card:hover{transform:translateY(-8px) scale(1.01)}
+    .card h2{margin:0 0 8px 0;font-size:16px}
+    .tag{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;background:var(--glass);color:var(--muted);margin-bottom:10px}
+
+    pre{background:#071226;padding:12px;border-radius:8px;overflow:auto;color:#e6eef8;font-size:13px;line-height:1.5}
+    code{font-family:SFMono-Regular,Menlo,Monaco,Roboto Mono,monospace}
+
+    /* right panel */
+    aside{position:relative}
+    .panel{position:sticky;top:24px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+    .pulse{height:80px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-direction:column;margin-bottom:12px;background:linear-gradient(90deg, rgba(124,58,237,0.12), rgba(59,130,246,0.08));animation:pulse 3s ease-in-out infinite}
+    @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+
+    /* small utilities */
+    .flex{display:flex;gap:12px;align-items:center}
+    .muted{color:var(--muted);font-size:13px}
+    .btn{background:linear-gradient(90deg,var(--accent),#3b82f6);padding:8px 12px;border-radius:8px;font-weight:600;border:none;color:white;cursor:pointer}
+
+    /* animated header underline */
+    .underline{height:4px;background:linear-gradient(90deg,transparent,var(--accent),transparent);border-radius:4px;margin-top:12px;animation:slide 6s linear infinite}
+    @keyframes slide{0%{background-position:0% 0%}100%{background-position:200% 0%}}
+
+    /* responsive */
+    @media (max-width:980px){main{grid-template-columns:1fr;padding:18px}aside{order:2}.panel{position:static}}
+
+    /* small note style */
+    .note{font-size:13px;color:var(--muted);background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;margin-top:10px}
+
+    .code-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .showmore{font-size:12px;color:var(--muted);cursor:pointer}
+
+    /* highlight boxes for secure / insecure */
+    .bad{border-left:4px solid #ef4444;padding-left:12px}
+    .good{border-left:4px solid #10b981;padding-left:12px}
+
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">SW</div>
+    <div>
+      <h1>Vulnerabilidades Web — Resumen y Buenas Prácticas</h1>
+      <p class="lead">Inyección SQL, XSS, Fallos de validación y manejo de sesiones — explicación concisa, riesgos y mitigaciones.</p>
+      <div class="underline"></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="cards">
+
+      <!-- SQL Injection card -->
+      <article class="card" id="sql">
+        <span class="tag">Inyección a la base de datos</span>
+        <h2>¿Qué es y por qué importa?</h2>
+        <p class="muted">La inyección SQL ocurre cuando una entrada del usuario se trata como parte de una consulta SQL sin control, permitiendo manipular la consulta. Riesgos: fuga de datos, modificación o borrado.</p>
+
+        <div class="code-title">
+          <strong>Ejemplo (inseguro — conceptualmente)</strong>
+          <span class="showmore" onclick="toggle('sql-insecure')">mostrar/ocultar</span>
+        </div>
+        <pre id="sql-insecure" style="display:none"><code>// NO USAR en producción
+const name = userInput;
+const query = "SELECT * FROM users WHERE name = '" + name + "'";
+// Ejecutar query directamente -> vulnerable</code></pre>
+
+        <div class="code-title">
+          <strong>Mitigación recomendada</strong>
+          <span class="showmore" onclick="toggle('sql-secure')">mostrar/ocultar</span>
+        </div>
+        <pre id="sql-secure" style="display:none"><code>// Use consultas parametrizadas / prepared statements
+// Node.js (mysql2 o pg) - ejemplo conceptual
+const query = 'SELECT * FROM users WHERE name = ?';
+const values = [userInput];
+// db.execute(query, values) — el driver se encarga de escapar parámetros
+
+// Validación y escaneo de privilegios: evitar que la cuenta DB tenga más permisos
+// que los necesarios (principio de menor privilegio)</code></pre>
+
+        <div class="note good">Buenas prácticas: usar ORM o queries parametrizadas, validar y limitar entrada, aplicar principio de menor privilegio a la cuenta DB, registrar accesos y usar WAF cuando proceda.</div>
+      </article>
+
+      <!-- XSS card -->
+      <article class="card" id="xss">
+        <span class="tag">XSS (Cross-Site Scripting)</span>
+        <h2>Resumen</h2>
+        <p class="muted">XSS se produce cuando una aplicación incluye contenido enviado por un usuario en páginas web sin codificarlo/escaparlo. Puede permitir robo de cookies, redirecciones maliciosas o suplantación de interfaz.</p>
+
+        <div class="code-title">
+          <strong>Mitigación (ejemplos seguros)</strong>
+          <span class="showmore" onclick="toggle('xss-secure')">mostrar/ocultar</span>
+        </div>
+        <pre id="xss-secure" style="display:none"><code>// 1) Escapar/encodear antes de insertar en HTML
+function escapeHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+// 2) Usar frameworks que auto-escapan (React, Vue, etc.)
+// 3) Content Security Policy (CSP) para mitigar ejecución de scripts no deseados
+// 4) HttpOnly y SameSite en cookies para proteger tokens</code></pre>
+
+        <div class="note good">Evitar document.write, innerHTML con datos sin sanitizar y desactivar evaluación de HTML en WYSIWYG cuando se recibe contenido del usuario.</div>
+      </article>
+
+      <!-- Validation card -->
+      <article class="card" id="validation">
+        <span class="tag">Fallos de validación</span>
+        <h2>Qué revisar</h2>
+        <p class="muted">La validación incompleta o solo del lado cliente permite entrada maliciosa, formatos incorrectos o omisión de reglas de negocio (p.ej. límites, tipos, longitud).</p>
+
+        <div class="code-title">
+          <strong>Reglas clave</strong>
+          <span class="showmore" onclick="toggle('val-list')">mostrar/ocultar</span>
+        </div>
+        <pre id="val-list" style="display:none"><code>- Siempre validar en servidor (server-side).
+- Validación por tipo (email, número, UUID) y por rango (min/max).
+- Normalizar datos (trim, normalizar Unicode) antes de validar.
+- Rechazar inputs inesperados (whitelisting > blacklisting).</code></pre>
+
+        <div class="note good">Combina validación en cliente (mejor UX) con validación exhaustiva en servidor y registro de errores para detectar patrones sospechosos.</div>
+      </article>
+
+      <!-- Session management card -->
+      <article class="card" id="session">
+        <span class="tag">Manejo inseguro de sesiones</span>
+        <h2>Riesgos y mitigaciones</h2>
+        <p class="muted">Sesiones mal configuradas permiten secuestro, fijación de sesión o exposición de tokens. Problemas típicos: cookies sin HttpOnly, sin Secure, sin expiración adecuada, o tokens en URLs.</p>
+
+        <div class="code-title">
+          <strong>Prácticas seguras</strong>
+          <span class="showmore" onclick="toggle('session-secure')">mostrar/ocultar</span>
+        </div>
+        <pre id="session-secure" style="display:none"><code>// Cookies (ejemplo conceptual en servidor)
+Set-Cookie: session=<<id>>; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600
+
+// Rotación de sesión al autenticar: crear un nuevo id después del login
+// Cerrar sesión en servidor y limpiar cookie (invalidate server session)
+// No poner tokens sensibles en la URL (query string) ni en almacenamiento local sin protección
+// Implementar timeouts de inactividad y re-autenticación para acciones sensibles</code></pre>
+
+        <div class="note good">Auditar librerías de sesión, usar tokens firmados (JWT con expiración corta y refresh tokens) con cuidado, y registrar inicios de sesión inusuales.</div>
+      </article>
+
+    </section>
+
+    <aside>
+      <div class="panel">
+        <div class="pulse">
+          <strong>Guía rápida</strong>
+          <small class="muted">Conceptos esenciales y cómo mitigarlos</small>
+        </div>
+
+        <div class="flex">
+          <div>
+            <p class="muted">Prioriza:</p>
+            <ol style="margin:6px 0 12px 18px;color:var(--muted)">
+              <li>Validación server-side</li>
+              <li>Consultas parametrizadas</li>
+              <li>Escapado/encoding de salida</li>
+              <li>Configuración segura de cookies</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>Checklist mínimo</strong>
+          <ul style="margin:8px 0 0 18px;color:var(--muted)">
+            <li>HTTPS obligatorio</li>
+            <li>Headers seguros: CSP, X-Content-Type-Options, X-Frame-Options</li>
+            <li>Principio de menor privilegio en DB</li>
+            <li>Registros y alertas ante patrones anómalos</li>
+          </ul>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn" onclick="download()">Descargar HTML</button>
+          <button class="btn" style="background:linear-gradient(90deg,#475569,#64748b)" onclick="printSummary()">Imprimir resumen</button>
+        </div>
+
+        <p class="muted" style="margin-top:12px">Nota: este documento es de carácter educativo. No incluya ni comparta ejemplos vulnerables en entornos públicos de producción.</p>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    function toggle(id){
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+    }
+
+    function download(){
+      const html = document.documentElement.outerHTML;
+      const blob = new Blob([html], {type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'SeguridadWeb_Resumen.html';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function printSummary(){
+      window.print();
+    }
+  </script>
+</body>
+</html>
